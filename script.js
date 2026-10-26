@@ -168,4 +168,56 @@ readout.textContent =
 `Pitch: ${Tone.Frequency(midi, "midi").toNote()} |` +
 `Speed: ${(state.speed * 1000).toFixed(2)}`;
 
+if (!state.audioReady) {
+  status.textContent = "Enable audio to hear the instrument.";
+  return;
+}
+// Movement Continously Changes Sound Paramters.
+filter.frequency.ramp(cutoff, 0.05);
+synth.volume.rampTo(Tone.gainToDb(volume), 0.05);
+
+
+const frequency = Tone.Frequency(midi, "midi").toFrequency();
+
+if (state.pointerDown) {
+  synth.frequency.rampTo(frequency, 0.04);
+}
+status.textContent = state.pointerDown
+? "Playing - move to change the sound."
+: "Ready - press and hold the circle to play.";
+
+//Pointer Event Handlers.
+circle.addEventListeners("pointermove", updateMovement);
+
+circle.addEventListeners("pointerdown", async (event))
+  event.preventDefault();
+  if (!state.audioReady) {
+    status.textContent = "Click Enable Audio First.";
+    return;
+  }
+  circle.setPointerCapture(event.pointerId);
+  state.pointerDown = true;
+
+  //Start the Note At the Current Pointer Position.
+  const midi = Math.round(
+    settings.minMidi +
+    state.x * (settings.maxMidi - settings.minMidi)
+  );
+  synth.triggerAttack(
+    Tone.Frequency(midi, "midi").toFrequency
+  );
+  updateInstrument();
+
+function stopPlaying () {
+  if (!state.pointerDown) return;
+  state.pointerDown = false;
+  if (synth) {
+    synth.triggerRelease();
+  }
+  status.textContent = "Note released.";
+}
+circle.addEventListener("pointerup, stopPlaying");
+circle.addEventListener("pointercancel", stopPlaying);
+circle.addEventListener("lostpointercapture", stopPlaying);
+
 setup(); // Always remember to call setup()!
