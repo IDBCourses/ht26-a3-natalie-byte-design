@@ -24,51 +24,148 @@
 import { createShape } from "./shape.js";
 
 // ---------- Settings ----------
-// Settings variables should contain all of the "fixed" parts of your programs
-// For example: which notes you can play, how fast things move, the tempo.
-const note = "C4"; // the note played when the pointer goes down
-
+import * as Tone from "tone.js";
+const setting = {
+  minMidi: 48,
+  maxMidi: 84,
+  minVolume: 0.015,
+  maxVolume: 0.22,
+  minFilter: 350,
+  maxFilter: 8000,
+  maxSpeed: 1.5,
+  minSize: 0.85,
+  maxSize: 1.5
+};
 // ---------- State ----------
-// State variables are the parts of your program that change over time.
-// For example: where the pointer is, how fast it's moving, or whether a drone is on.
+const state = {
+  x: 0.5,
+  y:0.5,
+  previousX: null,
+  previousY: null,
+  previousTime: null,
+  speed: 0,
+  direction: 0,
+  history: [],
+  pointerDown: false,
+  audioReady: false,
+  lastMidi: 60
+};
+//-------- Setup------------
+const circle = document.querySelector("#circle");
+const startButton = document.querySelector("#start");
+const status = document.querySelector("#status");
+const readout = document.querySelector("#readout");
 
-// ---------- Sound ----------
-// Make the instruments and plug them into the speakers.
-const synth = new Tone.PolySynth(Tone.Synth).toDestination(); // can play several notes at once
+let synth;
+let filter;
 
-// ---------- Update ----------
-// Update the state. This is called every 100ms.
-function update() {
-  setTimeout(update, 100); // call update() again in 100 milliseconds
+async function setupAudio() {
+await Tone.start();
+
+if (!synth) {
+  filter = new Tone.Filter({
+    type: "lowpass",
+    frequency: 2000,
+    rolloff: -12
+  });
+synth = new Tone.Synth({
+  oscillator: {type: "sawtooth" },
+  envelope: {
+    attack: 0.08,
+    decay: 0.15,
+    sustain: 0.7,
+    release: 0.35
+  }
+});
+
+synth.connect(filter);
+filter.toDestination();
+
 }
 
-// ---------- Use ----------
-// Use the state to make sound and move shapes. This is called every 100ms.
-function use() {
-  setTimeout(use, 100); // call use() again in 100 milliseconds
+state.audioReady = true;
+startButton.textContent = "Audio Enabled";
+statustextContent = "Move around; hold the pointer to play.";
+
 }
 
-// ---------- Controls (Event Handlers) ----------
-// Runs every time the pointer goes down: a click, a tap or a pen touch.
-function pointerDown(event) {
-  Tone.start(); // browsers only allow sound after the player has pressed something
+startButton.addEventListener("click", setupAudio);
 
-  console.log("Pointer down at", event.clientX, event.clientY);
-  synth.triggerAttackRelease(note, "8n"); // play the note for an eighth note
+//UPDATE: Process Pointer History
+function updateMovement(event) {
+  const rect = circle.getBoundingClientRect();
+// Normalize pointer coordinates from 0 to 1.
+state.x = Math.max(
+  0, Math.min(1, (event.ClientX - rect.left) / rect.width)
+);
+
+state.y = Math.max(
+  0, Math.min(1, (event.clientY - rect.top) / rect.height)
+);
+const now = performance.now();
+if (state.previousTime !== null) {
+  const dt = Mathmax(1, now - state.previousTime);
+  const dx = state.x - state.previousX;
+  const dy = state.y - state.previousY;
+}
+// Movement distance per millisecond.
+const instaSpeed = Math.hypot(dx, dy) / dt;
+
+//Smooth speed using a history of recent events.
+
+state.history.push(instantSpeed);
+if (state.history.length > 8) {
+  state.history.shift();
+}
+const averageSpeed =
+state.history.reduce((sum, value) => sum + value, 0) /
+state.history.length;
+
+state.speed = averageSpeed;
+state.direction = Math.atan(dy, dx);
 }
 
-// ---------- Setup ----------
-// Setup is run once, at the start of the program. It sets everything up for us!
-function setup() {
-  update(); // start the update loop
-  use(); // start the use loop
+state.previousX = state.x;
+state.previousY = state.y;
+state.previousTime = now;
 
-  // Example: a shape near the middle of the window. Replace it with your own.
-  const example = createShape("example");
-  example.setPosition(0.5, 0.5);
+updateInstrument();
 
-  // Put your event listener code here
-  window.addEventListener("pointerdown", pointerDown);
+// USE: Change Sound and Visuals
+function updateInstrument() {
+  const midi = Math.round(
+    settings.minMidi +
+    state.x * (settings.maxMidi - settings.minMidi)
+
+  );
 }
+const volume = settings.minVolume +
+(1 - state.y) *
+(settings.maxVolume - settings.minVolume);
+
+const movement = Math.min(
+  1, state.speed / settings.maxSpeed
+);
+const cutoff = settings.MinFilter +
+movement * (settings.maxFilter - settings.minFilter);
+
+const size = settings.minSize +
+movement * (settings.maxSize - settings.minSize);
+
+//Visual Feedback: Pitch Changes Color;
+// Speed Changes Size and Glow.
+const hue = 190 + state.x * 150;
+const glow = 15 + movement * 45;
+
+circle.computedStyleMap.background = `hsl(${hue}, 85%, 60%)` ;
+circle.computedStyleMap.transform =
+`scale(${size}) rotate(${state.direction}rad)`;
+
+circle.style.boxShadow =
+`0 0 ${glow}px hsla(${hue}, 90%, 60%, 0.7)`;
+
+readout.textContent =
+`Pitch: ${Tone.Frequency(midi, "midi").toNote()} |` +
+`Speed: ${(state.speed * 1000).toFixed(2)}`;
 
 setup(); // Always remember to call setup()!
