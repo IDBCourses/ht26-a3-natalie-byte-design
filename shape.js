@@ -20,19 +20,19 @@ function uniqueId(id, current = null) {
  * A shape: a DOM element plus its own state, with methods to change both.
  * Setter methods return the shape so calls can be chained.
  */
-export class Shape {
+export class Shape {circle
   /** @param {HTMLElement} element - The element this shape controls. */
   constructor(element) {
     this.element = element;
     this.x = (window.innerWidth || 0) * 0.5;
     this.y = (window.innerHeight || 0) * 0.5;
-    this.hue = 0;
+    this.hue = 211;
     this.saturation = 100;
     this.lightness = 50;
     this.opacity = 1;
-    this.width = 100;
-    this.height = 100;
-    this.roundedness = 0;
+    this.width = 200;
+    this.height = 200;
+    this.roundedness = 1;
     this.rotation = 0;
   }
 
@@ -116,7 +116,7 @@ export class Shape {
  * @param {string} [className="shape"] - CSS class to apply to the element.
  * @returns {Shape} The created shape. Its element is `shape.element`.
  */
-export function createShape(id = null, className = "shape") {
+export function createShape(id = null, className = "circle") {
   const el = document.createElement("div");
 
   if (className) {
