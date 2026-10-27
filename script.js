@@ -20,204 +20,145 @@
  *
  * Tone.js documentation: https://tonejs.github.io/docs/15.1.22/
  */
+import { setupShape, updateShape } from "./shape.js";
 
-import { createShape } from "./shape.js";
-
-// ---------- Settings ----------
-import * as Tone from "tone.js";
-const setting = {
-  minMidi: 48,
-  maxMidi: 84,
-  minVolume: 0.015,
-  maxVolume: 0.22,
-  minFilter: 350,
-  maxFilter: 8000,
-  maxSpeed: 1.5,
-  minSize: 0.85,
-  maxSize: 1.5
+// SETTING
+const settings = {
+  notes: ["C4", "D4", "E4", "G4", "A4", "C5", "D5"],
+  movementThreshold: 22,
+  noteLength: "8n"
 };
-// ---------- State ----------
+
+// STATE: Remembers Pointer Movement over Time.
 const state = {
-  x: 0.5,
-  y:0.5,
-  previousX: null,
-  previousY: null,
-  previousTime: null,
-  speed: 0,
+  isPlaying: false,
+  lastX: 0,
+  lastY: 0,
+  lastTime: 0,
+  distance: 0,
   direction: 0,
-  history: [],
-  pointerDown: false,
-  audioReady: false,
-  lastMidi: 60
+  speed: 0
 };
-//-------- Setup------------
-const circle = document.querySelector("#circle");
-const startButton = document.querySelector("#start");
+
+// SETUP
+const circle = setupShape();
 const status = document.querySelector("#status");
-const readout = document.querySelector("#readout");
 
-let synth;
-let filter;
-
-async function setupAudio() {
-await Tone.start();
-
-if (!synth) {
-  filter = new Tone.Filter({
-    type: "lowpass",
-    frequency: 2000,
-    rolloff: -12
-  });
-synth = new Tone.Synth({
-  oscillator: {type: "sawtooth" },
+const filter = new Tone.Filter(1200, "lowpass");
+const synth = new Tone.Synth({
+  oscillator: { type: "triangle" },
   envelope: {
-    attack: 0.08,
+    attack: 0.03,
     decay: 0.15,
-    sustain: 0.7,
-    release: 0.35
+    sustain: 0.3,
+    release: 0.2
   }
 });
 
 synth.connect(filter);
 filter.toDestination();
 
-}
-
-state.audioReady = true;
-startButton.textContent = "Audio Enabled";
-statustextContent = "Move around; hold the pointer to play.";
-
-}
-
-startButton.addEventListener("click", setupAudio);
-
-//UPDATE: Process Pointer History
-function updateMovement(event) {
+//USE: Convert Pointer Position Into a Musical Note.
+function playNote(x, y) {
   const rect = circle.getBoundingClientRect();
-// Normalize pointer coordinates from 0 to 1.
-state.x = Math.max(
-  0, Math.min(1, (event.ClientX - rect.left) / rect.width)
-);
 
-state.y = Math.max(
-  0, Math.min(1, (event.clientY - rect.top) / rect.height)
-);
-const now = performance.now();
-if (state.previousTime !== null) {
-  const dt = Mathmax(1, now - state.previousTime);
-  const dx = state.x - state.previousX;
-  const dy = state.y - state.previousY;
-}
-// Movement distance per millisecond.
-const instaSpeed = Math.hypot(dx, dy) / dt;
-
-//Smooth speed using a history of recent events.
-
-state.history.push(instantSpeed);
-if (state.history.length > 8) {
-  state.history.shift();
-}
-const averageSpeed =
-state.history.reduce((sum, value) => sum + value, 0) /
-state.history.length;
-
-state.speed = averageSpeed;
-state.direction = Math.atan(dy, dx);
-}
-
-state.previousX = state.x;
-state.previousY = state.y;
-state.previousTime = now;
-
-updateInstrument();
-
-// USE: Change Sound and Visuals
-function updateInstrument() {
-  const midi = Math.round(
-    settings.minMidi +
-    state.x * (settings.maxMidi - settings.minMidi)
-
+  const horizontalPosition = Math.max(
+    0,
+    Math.min(0.999, (x - rect.left) / rect.width)
   );
 }
-const volume = settings.minVolume +
-(1 - state.y) *
-(settings.maxVolume - settings.minVolume);
-
-const movement = Math.min(
-  1, state.speed / settings.maxSpeed
+const noteIndex = Math.floor(
+  horizontalPosition * settings.notes.length
 );
-const cutoff = settings.MinFilter +
-movement * (settings.maxFilter - settings.minFilter);
+const note = settings.notes[noteIndex];
 
-const size = settings.minSize +
-movement * (settings.maxSize - settings.minSize);
+//vertical position changes sound brightness.
+const verticalPosition = Math.max(
+  0,
+  Math.min(1, (y - rect.top) / rect.height)
+);
+filter.frequency.value =
+400 + (1 - verticalPosition) * 4600;
 
-//Visual Feedback: Pitch Changes Color;
-// Speed Changes Size and Glow.
-const hue = 190 + state.x * 150;
-const glow = 15 + movement * 45;
+// Speed changes how strongly the note is played
+const velocity = Math.max(
+  0.2,
+  Math.min(1, 0.35 + state.speed / 30)
+);
+synth.triggerAttackRelease(
+  note,
+  settings.noteLength,
+  undefined,
+  velocity
+);
 
-circle.computedStyleMap.background = `hsl(${hue}, 85%, 60%)` ;
-circle.computedStyleMap.transform =
-`scale(${size}) rotate(${state.direction}rad)`;
+status.textContent =
+`Note: ${note} | Speed: ${state.speed.toFixed(1)}`;
 
-circle.style.boxShadow =
-`0 0 ${glow}px hsla(${hue}, 90%, 60%, 0.7)`;
+//Pointer Down: Start the instrument.
+circle.addEventListener("pointerdown", async (event) => {
+event.preventDefault();
 
-readout.textContent =
-`Pitch: ${Tone.Frequency(midi, "midi").toNote()} |` +
-`Speed: ${(state.speed * 1000).toFixed(2)}`;
+await Tone.start();
 
-if (!state.audioReady) {
-  status.textContent = "Enable audio to hear the instrument.";
-  return;
-}
-// Movement Continously Changes Sound Paramters.
-filter.frequency.ramp(cutoff, 0.05);
-synth.volume.rampTo(Tone.gainToDb(volume), 0.05);
+circle.setPointerCapture(event.pointerId);
 
+state.isPlaying = true;
+state.lastX = event.clientX;
+state.lastY = event.clientY;
+state.lastTime = event.timeStamp;
+state.distance = 0;
+state.direction = 0;
+state.speed = 0;
 
-const frequency = Tone.Frequency(midi, "midi").toFrequency();
+playNote(event.clientX, event.clientY);
+});
 
-if (state.pointerDown) {
-  synth.frequency.rampTo(frequency, 0.04);
-}
-status.textContent = state.pointerDown
-? "Playing - move to change the sound."
-: "Ready - press and hold the circle to play.";
+// Pointer Move: Process a history of movement.
+circle.addEventListener("pointermove", (event) => {
+  if (!state.isPlaying) return;
 
-//Pointer Event Handlers.
-circle.addEventListeners("pointermove", updateMovement);
-
-circle.addEventListeners("pointerdown", async (event))
   event.preventDefault();
-  if (!state.audioReady) {
-    status.textContent = "Click Enable Audio First.";
-    return;
-  }
-  circle.setPointerCapture(event.pointerId);
-  state.pointerDown = true;
 
-  //Start the Note At the Current Pointer Position.
-  const midi = Math.round(
-    settings.minMidi +
-    state.x * (settings.maxMidi - settings.minMidi)
-  );
-  synth.triggerAttack(
-    Tone.Frequency(midi, "midi").toFrequency
-  );
-  updateInstrument();
+  const dx = event.clientX - state.lastX;
+  const dy = event.clientY - state.lastY;
 
-function stopPlaying () {
-  if (!state.pointerDown) return;
-  state.pointerDown = false;
-  if (synth) {
-    synth.triggerRelease();
-  }
-  status.textContent = "Note released.";
+  const distance = Math.hypot(dx, dy);
+  const elapsed = Math.max(
+    1,
+    event.timeStamp - state.lastTime
+  );
 }
-circle.addEventListener("pointerup, stopPlaying");
-circle.addEventListener("pointercancel", stopPlaying);
-circle.addEventListener("lostpointercapture", stopPlaying);
 
+// Calculate speed using distance and elapsed time.
+state.speed = distance / elapsed * 10;
+
+//Remember whether the pointer moves left or right
+if (dx > 0) state.direction = 1;
+if (dx < 0) state.direction = -1;
+
+// Accumulate distance across multiple pointer events.
+state.distance += distance;
+
+// Updates the visual immediately, no animation.
+updateShape(circle, state.speed, state.direction);
+
+// Plays a note after enough movement has occured.
+if (state.disstance >= settings.movementThreshold) {
+  playNote(Event.clientX, Event.clientY);
+  state.distance = 0;
+}
+// Saves this for the next movement calculation.
+state.lastX = Event.clientX;
+state.lastY = Event.clientY;
+state.lastTime = Event.timeStamp;
+
+//POINTER UP: Stops generating new notes.
+function stopPlaying() {
+  state.isPlaying = false;
+  status.textContent = "Press the circle to play again";
+}
+
+circle.addEventListener("pointerup", stopPlaying);
+circle.addEventListener("pointercancel", stopPlaying);
 setup(); // Always remember to call setup()!
