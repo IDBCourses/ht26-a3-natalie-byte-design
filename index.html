@@ -1,19 +1,21 @@
-<div class="instrument">
-  <div class="circle" id="circle"></div>
-  </div>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"
+    >Musical Circle</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/tone@15.1.22/build/Tone.js"></script>
+    <script type="module" src="script.js"></script>
+  </head>
+<body>
+  <main>
+    <h1>Musical Circle</h1>
+    <p>Press the circle and move to play</p>
 
-<h1> Circle Instrument</h1>
-<p>Move your pointer. Hold to play.</p>
-<button id="start"> Enable Audio</button>
+    <div id="circle" aria-label="Interactive musical circle"></div>
 
-<div class="stage">
-  <div id="circle" aria-label="Musical circle"></div>
-</div>
-
-<p id="status">Enable audio, then explore circle.
-<p id="readout">Pitch: - | Speed: -</p>
-</main>
-
-<script type="module" src="/main.js"></script>
+    <p id="status">Press the circle to start</p>
+  </main>
 </body>
 </html>
