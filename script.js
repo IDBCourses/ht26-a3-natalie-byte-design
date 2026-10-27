@@ -109,6 +109,7 @@ if (state.previousTime !== null) {
   const dy = state.y - state.previousY;
 }
 // Movement distance per millisecond.
+
 const instaSpeed = Math.hypot(dx, dy) / dt;
 
 //Smooth speed using a history of recent events.
@@ -132,6 +133,7 @@ state.previousTime = now;
 updateInstrument();
 
 // USE: Change Sound and Visuals
+
 function updateInstrument() {
   const midi = Math.round(
     settings.minMidi +
@@ -172,7 +174,7 @@ if (!state.audioReady) {
   status.textContent = "Enable audio to hear the instrument.";
   return;
 }
-// Movement Continously Changes Sound Paramters.
+// Movement Continously Changes Sound Parameters.
 filter.frequency.ramp(cutoff, 0.05);
 synth.volume.rampTo(Tone.gainToDb(volume), 0.05);
 
@@ -219,5 +221,13 @@ function stopPlaying () {
 circle.addEventListener("pointerup, stopPlaying");
 circle.addEventListener("pointercancel", stopPlaying);
 circle.addEventListener("lostpointercapture", stopPlaying);
+
+circle.style.background =`hsl(${hue}, 85%, 60%)`;
+circle.style.transform =
+`scale(${size}) rotate(${state.direction}rad)`;
+
+circle.style.boxShadow =
+`0 0 ${glow}px hsla(${hue}, 90%, 60%, 0.7)`;
+
 
 setup(); // Always remember to call setup()!
