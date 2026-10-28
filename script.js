@@ -20,145 +20,90 @@
  *
  * Tone.js documentation: https://tonejs.github.io/docs/15.1.22/
  */
-import { setupShape, updateShape } from "./shape.js";
 
-// SETTING
+import { createShape } from "./shape.js";
+console.log("script.js is running");
+// ---------- Settings ----------
 const settings = {
-  notes: ["C4", "D4", "E4", "G4", "A4", "C5", "D5"],
-  movementThreshold: 22,
-  noteLength: "8n"
+  notes: ["C4", "D4", "E4", "G4", "A4"],
+  noteLength: "8n",
+  loopInterval: 250,
 };
+// ---------- State ----------
 
-// STATE: Remembers Pointer Movement over Time.
-const state = {
-  isPlaying: false,
-  lastX: 0,
-  lastY: 0,
-  lastTime: 0,
-  distance: 0,
-  direction: 0,
-  speed: 0
-};
+let shape;
+let x = 0;
+let y = 0;
+let isDragging = false;
+let noteIndex = 0;
 
-// SETUP
-const circle = setupShape();
-const status = document.querySelector("#status");
+// ---------- Sound ----------
+// Make the instruments and plug them into the speakers.
+const synth = new Tone.PolySynth(Tone.Synth).toDestination(); // can play several notes at once
 
-const filter = new Tone.Filter(1200, "lowpass");
-const synth = new Tone.Synth({
-  oscillator: { type: "triangle" },
-  envelope: {
-    attack: 0.03,
-    decay: 0.15,
-    sustain: 0.3,
-    release: 0.2
+// ---------- Update ----------
+// Update the state. This is called every 200ms.
+function update() {
+  setTimeout(update, settings.loopInterval);
+}
+
+// ---------- Use ----------
+// Use the state to make sound and move shapes. This is called every 100ms.
+function use() {
+  if (isDragging && shape) {
+    shape.setPositionPixels(x - shape.width / 2, y - shape.height / 2);
   }
-});
-
-synth.connect(filter);
-filter.toDestination();
-
-//USE: Convert Pointer Position Into a Musical Note.
-function playNote(x, y) {
-  const rect = circle.getBoundingClientRect();
-
-  const horizontalPosition = Math.max(
-    0,
-    Math.min(0.999, (x - rect.left) / rect.width)
-  );
+  window.requestAnimationFrame(use);
 }
-const noteIndex = Math.floor(
-  horizontalPosition * settings.notes.length
-);
-const note = settings.notes[noteIndex];
+// ---------- Controls (Event Handlers) ----------
+// Start the continous sound loop.
+async function pointerDown(event) {
+  if (isDragging) return;
 
-//vertical position changes sound brightness.
-const verticalPosition = Math.max(
-  0,
-  Math.min(1, (y - rect.top) / rect.height)
-);
-filter.frequency.value =
-400 + (1 - verticalPosition) * 4600;
+  isDragging = true;
+  console.log("pointer down");
 
-// Speed changes how strongly the note is played
-const velocity = Math.max(
-  0.2,
-  Math.min(1, 0.35 + state.speed / 30)
-);
-synth.triggerAttackRelease(
-  note,
-  settings.noteLength,
-  undefined,
-  velocity
-);
+  await Tone.start();
+  playNextNote();
+}
+// Play notes repeatedly while pointer is held in place.
+function playNextNote() {
+  if (!isDragging) return;
+  const note = settings.notes[noteIndex];
+  synth.triggerAttackRelease(note, settings.noteLength);
+  noteIndex = (noteIndex + 1) % settings.notes.length;
+  setTimeout(playNextNote, settings.loopInterval);
+}
+// Stop the loop when pointer is released.
+function pointerUp(event) {
+  isDragging = false;
+  console.log("Pointer up");
+}
+// Track pointer movement over time.
+function pointerMove(event) {
+  x = event.clientX;
+  y = event.clientY;
+}
+// ---------- Setup ----------
+function setup() {
+  console.log("Setup started");
 
-status.textContent =
-`Note: ${note} | Speed: ${state.speed.toFixed(1)}`;
+  shape = createShape("shape");
 
-//Pointer Down: Start the instrument.
-circle.addEventListener("pointerdown", async (event) => {
-event.preventDefault();
+  shape
+    .setSize(100)
+    .setRoundedness(1)
+    .setColour(210, 100, 50)
+    .setPosition(0.5, 0.5);
 
-await Tone.start();
+  console.log("Shape element:", shape.element);
 
-circle.setPointerCapture(event.pointerId);
+  shape.element.addEventListener("pointerdown", pointerDown);
+  window.addEventListener("pointerup", pointerUp);
+  window.addEventListener("pointermove", pointerMove);
 
-state.isPlaying = true;
-state.lastX = event.clientX;
-state.lastY = event.clientY;
-state.lastTime = event.timeStamp;
-state.distance = 0;
-state.direction = 0;
-state.speed = 0;
-
-playNote(event.clientX, event.clientY);
-});
-
-// Pointer Move: Process a history of movement.
-circle.addEventListener("pointermove", (event) => {
-  if (!state.isPlaying) return;
-
-  event.preventDefault();
-
-  const dx = event.clientX - state.lastX;
-  const dy = event.clientY - state.lastY;
-
-  const distance = Math.hypot(dx, dy);
-  const elapsed = Math.max(
-    1,
-    event.timeStamp - state.lastTime
-  );
+  update();
+  use();
 }
 
-// Calculate speed using distance and elapsed time.
-state.speed = distance / elapsed * 10;
-
-//Remember whether the pointer moves left or right
-if (dx > 0) state.direction = 1;
-if (dx < 0) state.direction = -1;
-
-// Accumulate distance across multiple pointer events.
-state.distance += distance;
-
-// Updates the visual immediately, no animation.
-updateShape(circle, state.speed, state.direction);
-
-// Plays a note after enough movement has occured.
-if (state.disstance >= settings.movementThreshold) {
-  playNote(Event.clientX, Event.clientY);
-  state.distance = 0;
-}
-// Saves this for the next movement calculation.
-state.lastX = Event.clientX;
-state.lastY = Event.clientY;
-state.lastTime = Event.timeStamp;
-
-//POINTER UP: Stops generating new notes.
-function stopPlaying() {
-  state.isPlaying = false;
-  status.textContent = "Press the circle to play again";
-}
-
-circle.addEventListener("pointerup", stopPlaying);
-circle.addEventListener("pointercancel", stopPlaying);
 setup(); // Always remember to call setup()!
