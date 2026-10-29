@@ -1,10 +1,11 @@
-# My instrument
+# My instrument: A circle that plays piano synth key notes that plays either a single or continous melody
 
-**Play it here:** <!-- Paste your GitHub Pages link here, e.g. https://idbcourses.github.io/your-repo-name/ -->
+**Play it here:** <!-- Paste your GitHub Pages link here, --> https://idbcourses.github.io/ht26-a3-natalie-byte-design/
 
-**Name:** <!-- Your name and MAU ID -->
+**Name:** <!-- Natalie Green as6395@mau.se -->
 
 <!-- One or two sentences: what kind of instrument is it, and what is it like to play? -->
+
 
 ## How to play
 
@@ -12,7 +13,7 @@
 
 | When you...  | The sound...                         | The shapes... |
 | ------------ | ------------------------------------ | ------------- |
-| Click or tap | Plays a C4 (the example: replace it) | Nothing yet   |
+| Click or tap | notes: ["C4", "D4", "E4", "G4", "A4"], | Nothing yet   |
 |              |                                      |               |
 
 <!-- Anything else a player needs to know: how to get started, a good thing to try first. -->
