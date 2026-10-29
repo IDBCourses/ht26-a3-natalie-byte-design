@@ -22,68 +22,141 @@
  */
 
 import { createShape } from "./shape.js";
+
 console.log("script.js is running");
+
 // ---------- Settings ----------
 const settings = {
   notes: ["C4", "D4", "E4", "G4", "A4"],
   noteLength: "8n",
-  loopInterval: 250,
+  loopInterval: 350,
+  minInterval: 150,
+  maxInterval: 500,
 };
-// ---------- State ----------
 
+// ---------- State ----------
 let shape;
 let x = 0;
 let y = 0;
+let previousX = 0;
+let previousY = 0;
+let lastMoveTime = 0;
+let speed = 0;
 let isDragging = false;
 let noteIndex = 0;
 
 // ---------- Sound ----------
-// Make the instruments and plug them into the speakers.
-const synth = new Tone.PolySynth(Tone.Synth).toDestination(); // can play several notes at once
+const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+synth.volume.value = -24;
 
 // ---------- Update ----------
-// Update the state. This is called every 200ms.
 function update() {
+  // Keep the update loop running
   setTimeout(update, settings.loopInterval);
 }
 
 // ---------- Use ----------
-// Use the state to make sound and move shapes. This is called every 100ms.
 function use() {
   if (isDragging && shape) {
     shape.setPositionPixels(x - shape.width / 2, y - shape.height / 2);
   }
+
   window.requestAnimationFrame(use);
 }
-// ---------- Controls (Event Handlers) ----------
-// Start the continous sound loop.
+
+// ---------- Play Notes ----------
+function playNextNote() {
+  if (!isDragging) return;
+
+  // If movement stops, gradually return to quiet, slower notes
+  const timeSinceMove = performance.now() - lastMoveTime;
+
+  if (timeSinceMove > 150) {
+    synth.volume.rampTo(-24, 0.3);
+    settings.loopInterval = 350;
+  }
+
+  const note = settings.notes[noteIndex];
+
+  synth.triggerAttackRelease(note, settings.noteLength);
+
+  noteIndex = (noteIndex + 1) % settings.notes.length;
+
+  // Use the latest interval for the next note
+  setTimeout(playNextNote, settings.loopInterval);
+}
+
+// ---------- Pointer Down ----------
 async function pointerDown(event) {
   if (isDragging) return;
 
   isDragging = true;
-  console.log("pointer down");
 
-  await Tone.start();
-  playNextNote();
-}
-// Play notes repeatedly while pointer is held in place.
-function playNextNote() {
-  if (!isDragging) return;
-  const note = settings.notes[noteIndex];
-  synth.triggerAttackRelease(note, settings.noteLength);
-  noteIndex = (noteIndex + 1) % settings.notes.length;
-  setTimeout(playNextNote, settings.loopInterval);
-}
-// Stop the loop when pointer is released.
-function pointerUp(event) {
-  isDragging = false;
-  console.log("Pointer up");
-}
-// Track pointer movement over time.
-function pointerMove(event) {
   x = event.clientX;
   y = event.clientY;
+  previousX = x;
+  previousY = y;
+  lastMoveTime = performance.now();
+  speed = 0;
+
+  await Tone.start();
+
+  synth.volume.rampTo(-24, 0.2);
+  playNextNote();
 }
+
+// ---------- Pointer Up ----------
+function pointerUp() {
+  isDragging = false;
+
+  synth.volume.rampTo(-24, 0.4);
+  settings.loopInterval = 350;
+
+  console.log("Pointer up");
+}
+
+// ---------- Pointer Move ----------
+function pointerMove(event) {
+  const now = performance.now();
+
+  x = event.clientX;
+  y = event.clientY;
+
+  // Do not change the sound unless the circle is being dragged
+  if (!isDragging) {
+    previousX = x;
+    previousY = y;
+    lastMoveTime = now;
+    return;
+  }
+
+  // Measure the distance moved
+  const dx = x - previousX;
+  const dy = y - previousY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+
+  // Calculate speed in pixels per second
+  const elapsed = Math.max(1, now - lastMoveTime);
+  speed = (distance / elapsed) * 1000;
+
+  // Convert speed into an intensity between 0 and 1
+  const intensity = Math.min(1, speed / 1000);
+
+  // Slow movement = quiet; fast movement = louder
+  const targetVolume = -24 + intensity * 18;
+  synth.volume.rampTo(targetVolume, 0.3);
+
+  // Slow movement = slower notes; fast movement = faster notes
+  settings.loopInterval =
+    settings.maxInterval -
+    intensity * (settings.maxInterval - settings.minInterval);
+
+  // Remember this position and time
+  previousX = x;
+  previousY = y;
+  lastMoveTime = now;
+}
+
 // ---------- Setup ----------
 function setup() {
   console.log("Setup started");
@@ -106,4 +179,4 @@ function setup() {
   use();
 }
 
-setup(); // Always remember to call setup()!
+setup();
